@@ -121,11 +121,10 @@ class ArSysSingleBoard
 				if (probDetect > 0.0)
 				{
 					tf::Transform transform = ar_sys::getTf(the_board_detected.Rvec, the_board_detected.Tvec);
+					tf::StampedTransform stampedTransform(transform, msg->header.stamp, "cam_pos", board_frame);
 
-					tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
-
-                    if (publish_tf)
-                        br.sendTransform(stampedTransform);
+          if (publish_tf)
+              br.sendTransform(stampedTransform);
 
 					geometry_msgs::PoseStamped poseMsg;
 					tf::poseTFToMsg(transform, poseMsg.pose);
@@ -141,6 +140,20 @@ class ArSysSingleBoard
 					positionMsg.header = transformMsg.header;
 					positionMsg.vector = transformMsg.transform.translation;
 					position_pub.publish(positionMsg);
+				}
+				else
+				{
+					geometry_msgs::PoseStamped poseMsg;
+					poseMsg.header.frame_id = msg->header.frame_id;
+					poseMsg.header.stamp = msg->header.stamp;
+					poseMsg.pose.position.x = 0;
+				  poseMsg.pose.position.y = 0;
+				  poseMsg.pose.position.z = 0;
+				  poseMsg.pose.orientation.x = 0;
+				  poseMsg.pose.orientation.y = 0;
+				  poseMsg.pose.orientation.z = 0;
+				  poseMsg.pose.orientation.w = 0;
+					pose_pub.publish(poseMsg);
 				}
 				//for each marker, draw info and its boundaries in the image
 				for(size_t i=0; draw_markers && i < markers.size(); ++i)

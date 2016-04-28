@@ -11,11 +11,11 @@
 	<arg name="uid" default=""/>
 	<arg name="video_rectified" default="false" />
 	<arg name="use_camera_info" default="false" />
+	<arg name="publish_tf" default="true" />
 
 	<arg name="board_config" default="$(find ar_sys)/data/single/board.yml" />
 	<arg name="board_frame_id" default="board1" />
 	<arg name="marker_size" default="0.05" />
-  <arg name="publish_tf" default="false" />
 
 	<!-- ar sys cpp node -->
 	<group ns="$(arg mav_name)">
