@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+	<arg name="mav_name" default="tupac" />
+	<arg name="camera_calib_file" value="$(find rpg_calib)/cameras/bluefox_$(env CAMERA_SERIAL_NR)_pinhole.yaml"/>
+
+	<arg name="result_draw_markers" default="false" />
+	<arg name="result_draw_markers_cube" default="false" />
+	<arg name="result_draw_markers_axis" default="false" />
+
+	<arg name="uid" default=""/>
+	<arg name="video_rectified" default="false" />
+	<arg name="use_camera_info" default="false" />
+
+	<arg name="board_config" default="$(find ar_sys)/data/single/board.yml" />
+	<arg name="board_frame_id" default="board1" />
+	<arg name="marker_size" default="0.05" />
+  <arg name="publish_tf" default="false" />
+
+	<!-- ar sys cpp node -->
+	<group ns="$(arg mav_name)">
+		<node ns="/" pkg="ar_sys" type="single_board" name="ar_single_board$(arg uid)" output="screen">
+			<remap from="/camera_info" to="camera/camer_info" />
+			<remap from="/image" to="camera/image_raw" />
+			<remap from="pose" to="tag_pose" />
+
+			<rosparam file="$(arg camera_calib_file)" />
+			<param name="image_is_rectified" type="bool" value="$(arg video_rectified)"/>
+			<param name="use_camera_info" type="bool" value="$(arg use_camera_info)"/>
+			<param name="board_config" type="string" value="$(arg board_config)"/>
+			<param name="board_frame" type="string" value="/$(arg board_frame_id)" />
+			<param name="marker_size" type="double" value="$(arg marker_size)"/>
+			<param name="draw_markers" type="bool" value="$(arg result_draw_markers)" />
+			<param name="draw_markers_cube" type="bool" value="$(arg result_draw_markers_cube)" />
+			<param name="draw_markers_axis" type="bool" value="$(arg result_draw_markers_axis)" />
+	    <param name="publish_tf" value="$(arg publish_tf)" />
+		</node>
+
+		<node ns="/" pkg="topic_tools" type="relay" name="ar_single_board_relay$(arg uid)" args="/ar_single_board$(arg uid)/transform /arsys_single_board/transform" />
+
+	</group>
+</launch>

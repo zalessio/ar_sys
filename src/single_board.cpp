@@ -44,7 +44,7 @@ class ArSysSingleBoard
 		image_transport::Publisher image_pub;
 		image_transport::Publisher debug_pub;
 		ros::Publisher pose_pub;
-		ros::Publisher transform_pub; 
+		ros::Publisher transform_pub;
 		ros::Publisher position_pub;
 		std::string board_frame;
 
@@ -63,9 +63,6 @@ class ArSysSingleBoard
 			nh("~"),
 			it(nh)
 		{
-			image_sub = it.subscribe("/image", 1, &ArSysSingleBoard::image_callback, this);
-			cam_info_sub = nh.subscribe("/camera_info", 1, &ArSysSingleBoard::cam_info_callback, this);
-
 			image_pub = it.advertise("result", 1);
 			debug_pub = it.advertise("debug", 1);
 			pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 100);
@@ -85,12 +82,27 @@ class ArSysSingleBoard
 
 			ROS_INFO("ArSys node started with marker size of %f m and board configuration: %s",
 					 marker_size, board_config.c_str());
+
+
+		  image_sub = it.subscribe("/image", 1, &ArSysSingleBoard::image_callback, this);
+
+			bool use_camera_info;
+	    nh.param<bool>("use_camera_info", use_camera_info, false);
+	    if (use_camera_info)
+	    {
+				cam_info_sub = nh.subscribe("/camera_info", 1, &ArSysSingleBoard::cam_info_callback, this);
+			}
+			else
+			{
+				camParam = ar_sys::getCamParams(useRectifiedImages);
+				cam_info_received = true;
+			}
 		}
 
 		void image_callback(const sensor_msgs::ImageConstPtr& msg)
 		{
             static tf::TransformBroadcaster br;
-            
+
 			if(!cam_info_received) return;
 
 			cv_bridge::CvImagePtr cv_ptr;
@@ -111,8 +123,8 @@ class ArSysSingleBoard
 					tf::Transform transform = ar_sys::getTf(the_board_detected.Rvec, the_board_detected.Tvec);
 
 					tf::StampedTransform stampedTransform(transform, msg->header.stamp, msg->header.frame_id, board_frame);
-                    
-                    if (publish_tf) 
+
+                    if (publish_tf)
                         br.sendTransform(stampedTransform);
 
 					geometry_msgs::PoseStamped poseMsg;

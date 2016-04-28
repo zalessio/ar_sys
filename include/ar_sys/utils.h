@@ -17,6 +17,8 @@ namespace ar_sys
      */
   aruco::CameraParameters getCamParams(const sensor_msgs::CameraInfo& cam_info,
                                                        bool useRectifiedParameters);
+  aruco::CameraParameters getCamParams(bool useRectifiedParameters);
+  
   /**
      * @brief getTf converts OpenCV coordinates to ROS Transform
      * @param Rvec
