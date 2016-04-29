@@ -15,7 +15,7 @@
 
 	<arg name="board_config" default="$(find ar_sys)/data/single/board.yml" />
 	<arg name="board_frame_id" default="board1" />
-	<arg name="marker_size" default="0.165" />
+	<arg name="marker_size" default="0.11" />
 
 	<!-- ar sys cpp node -->
 	<group ns="$(arg mav_name)">
