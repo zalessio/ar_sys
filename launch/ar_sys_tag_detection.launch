@@ -10,19 +10,19 @@
 
 	<arg name="uid" default=""/>
 	<arg name="video_rectified" default="false" />
-	<arg name="use_camera_info" default="false" />
+	<arg name="use_camera_info" default="true" />
 	<arg name="publish_tf" default="true" />
 
 	<arg name="board_config" default="$(find ar_sys)/data/single/board.yml" />
 	<arg name="board_frame_id" default="board1" />
-	<arg name="marker_size" default="0.05" />
+	<arg name="marker_size" default="0.165" />
 
 	<!-- ar sys cpp node -->
 	<group ns="$(arg mav_name)">
-		<node ns="/" pkg="ar_sys" type="single_board" name="ar_single_board$(arg uid)" output="screen">
-			<remap from="/camera_info" to="camera/camer_info" />
+		<node pkg="ar_sys" type="single_board" name="ar_single_board$(arg uid)" output="screen">
+			<remap from="/camera_info" to="camera/camera_info" />
 			<remap from="/image" to="camera/image_raw" />
-			<remap from="pose" to="tag_pose" />
+			<remap from="ar_single_board/pose" to="tag_pose" />
 
 			<rosparam file="$(arg camera_calib_file)" />
 			<param name="image_is_rectified" type="bool" value="$(arg video_rectified)"/>
@@ -36,7 +36,7 @@
 	    <param name="publish_tf" value="$(arg publish_tf)" />
 		</node>
 
-		<node ns="/" pkg="topic_tools" type="relay" name="ar_single_board_relay$(arg uid)" args="/ar_single_board$(arg uid)/transform /arsys_single_board/transform" />
+		<!--node pkg="topic_tools" type="relay" name="ar_single_board_relay$(arg uid)" args="/ar_single_board$(arg uid)/transform /arsys_single_board/transform" /-->
 
 	</group>
 </launch>
