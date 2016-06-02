@@ -22,9 +22,9 @@
 			<remap from="/camera_info" to="camera_downward/camera_info" />
 			<remap from="/image" to="camera_downward/image_raw" />
 			<remap from="ar_single_board/pose" to="tag_pose" />
-			<remap from="/camera_info2" to="camera_front/camera_info" />
-			<remap from="/image2" to="camera_front/image_raw" />
-			<remap from="ar_single_board/pose2" to="tag_pose" />
+			<remap from="/camera_info2" to="fake/camera_front/camera_info" />
+			<remap from="/image2" to="fake/camera_front/image_raw" />
+			<remap from="ar_single_board/pose2" to="fake/tag_pose" />
 
 			<param name="image_is_rectified" type="bool" value="$(arg video_rectified)"/>
 			<param name="use_camera_info" type="bool" value="$(arg use_camera_info)"/>
