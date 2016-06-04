@@ -2,7 +2,7 @@
 
 <launch>
 	<arg name="mav_name" default="tupac" />
-	<arg name="camera_calib_file" value="$(find rpg_calib)/cameras/bluefox_$(env CAMERA_SERIAL_NR)_pinhole.yaml"/>
+	<!--arg name="camera_calib_file" value="$(find rpg_calib)/cameras/bluefox_$(env CAMERA_SERIAL_NR)_pinhole.yaml"/-->
 
 	<arg name="result_draw_markers" default="false" />
 	<arg name="result_draw_markers_cube" default="false" />
@@ -24,7 +24,7 @@
 			<remap from="/image" to="camera/image_raw" />
 			<remap from="ar_single_board/pose" to="tag_pose" />
 
-			<rosparam file="$(arg camera_calib_file)" />
+			<!--rosparam file="$(arg camera_calib_file)" /-->
 			<param name="image_is_rectified" type="bool" value="$(arg video_rectified)"/>
 			<param name="use_camera_info" type="bool" value="$(arg use_camera_info)"/>
 			<param name="board_config" type="string" value="$(arg board_config)"/>
