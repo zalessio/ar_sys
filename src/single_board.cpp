@@ -80,9 +80,11 @@ class ArSysSingleBoard
 			pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 100);
 			transform_pub = nh.advertise<geometry_msgs::TransformStamped>("transform", 100);
 			position_pub = nh.advertise<geometry_msgs::Vector3Stamped>("position", 100);
+			/*
 			pose_pub2 = nh.advertise<geometry_msgs::PoseStamped>("pose2", 100);
 			transform_pub2 = nh.advertise<geometry_msgs::TransformStamped>("transform2", 100);
 			position_pub2 = nh.advertise<geometry_msgs::Vector3Stamped>("position2", 100);
+			*/
 
 			nh.param<double>("marker_size", marker_size, 0.05);
 			nh.param<std::string>("board_config", board_config, "boardConfiguration.yml");
@@ -112,6 +114,7 @@ class ArSysSingleBoard
 				cam_info_received = true;
 			}
 
+			/*
 			image_sub2 = it.subscribe("/image2", 1, &ArSysSingleBoard::image_callback2, this);
 	    if (use_camera_info)
 	    {
@@ -121,7 +124,7 @@ class ArSysSingleBoard
 			{
 				camParam2 = ar_sys::getCamParams(useRectifiedImages);
 				cam_info_received2 = true;
-			}
+			}*/
 		}
 
 		void image_callback(const sensor_msgs::ImageConstPtr& msg)
