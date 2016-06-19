@@ -110,7 +110,7 @@ public:
     /**Returns the Info of the marker with id specified. If not in the set, throws exception
      */
     const MarkerInfo& getMarkerInfo(int id)const throw (cv::Exception);
-    /**Set in the list passed the set of the ids 
+    /**Set in the list passed the set of the ids
      */
     void getIdList(vector<int> &ids,bool append=true)const;
 private:
@@ -130,15 +130,18 @@ class ARUCO_EXPORTS Board:public vector<Marker>
 public:
     BoardConfiguration conf;
     //matrices of rotation and translation respect to the camera
-    cv::Mat Rvec,Tvec;
+    cv::Mat Rvec,Tvec,Cov;
     /**
     */
     Board()
     {
         Rvec.create(3,1,CV_32FC1);
         Tvec.create(3,1,CV_32FC1);
+        Cov.create(6,6,CV_32FC1);
         for (int i=0;i<3;i++)
-            Tvec.at<float>(i,0)=Rvec.at<float>(i,0)=-999999;
+            Tvec.at<float>(i,0)=Rvec.at<float>(i,0)=Cov.at<float>(i,0)=-999999;
+        for (int i=3;i<6;i++)
+            Cov.at<float>(i,0)=-999999;
     }
 
     /**Given the extrinsic camera parameters returns the GL_MODELVIEW matrix for opengl.

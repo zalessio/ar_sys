@@ -36,7 +36,7 @@ or implied, of Rafael Muñoz Salinas.
 #include <valarray>
 using namespace std;
 using namespace cv;
-  
+
 namespace aruco
 {
 /************************************
@@ -47,7 +47,7 @@ namespace aruco
  ************************************/
 MarkerDetector::MarkerDetector()
 {
-    _doErosion=false; 
+    _doErosion=false;
     _thresMethod=ADPT_THRES;
     _thresParam1=_thresParam2=7;
     _cornerMethod=LINES;
@@ -183,7 +183,7 @@ void MarkerDetector::detect ( const  cv::Mat &input,vector<Marker> &detectedMark
         }
     }
 
-    
+
     ///identify the markers
     vector<vector<Marker> >markers_omp(omp_get_max_threads());
     vector<vector < std::vector<cv::Point2f> > >candidates_omp(omp_get_max_threads());
@@ -199,8 +199,8 @@ void MarkerDetector::detect ( const  cv::Mat &input,vector<Marker> &detectedMark
             int id= ( *markerIdDetector_ptrfunc ) ( canonicalMarker,nRotations );
             if ( id!=-1 )
             {
- 		if(_cornerMethod==LINES) // make LINES refinement before lose contour points
-		  refineCandidateLines( MarkerCanditates[i], camMatrix, distCoeff ); 
+             		if(_cornerMethod==LINES) // make LINES refinement before lose contour points
+            		  refineCandidateLines( MarkerCanditates[i], camMatrix, distCoeff );
                 markers_omp[omp_get_thread_num()].push_back ( MarkerCanditates[i] );
                 markers_omp[omp_get_thread_num()].back().id=id;
                 //sort the points so that they are always in the same order no matter the camera orientation
@@ -208,9 +208,9 @@ void MarkerDetector::detect ( const  cv::Mat &input,vector<Marker> &detectedMark
             }
             else candidates_omp[omp_get_thread_num()].push_back ( MarkerCanditates[i] );
         }
-       
+
     }
-    //unify parallel data 
+    //unify parallel data
 	joinVectors(markers_omp,detectedMarkers,true);
 	joinVectors(candidates_omp,_candidates,true);
 
@@ -251,13 +251,13 @@ void MarkerDetector::detect ( const  cv::Mat &input,vector<Marker> &detectedMark
         //delete if any of the corners is too near image border
         for(size_t c=0;c<detectedMarkers[i].size();c++){
 	    if ( detectedMarkers[i][c].x<borderDistThresX ||
-	      detectedMarkers[i][c].y<borderDistThresY || 
+	      detectedMarkers[i][c].y<borderDistThresY ||
 	      detectedMarkers[i][c].x>input.cols-borderDistThresX ||
 	      detectedMarkers[i][c].y>input.rows-borderDistThresY ) toRemove[i]=true;
 
 	}
- 
-        
+
+
     }
     //remove the markers marker
     removeElements ( detectedMarkers, toRemove );
@@ -374,10 +374,10 @@ void MarkerDetector::detectRectangles(const cv::Mat &thresImg,vector<MarkerCandi
 
         }
     }
-      
+
     /// remove these elements which corners are too close to each other
     //first detect candidates to be removed
- 
+
     vector< vector<pair<int,int>  > > TooNearCandidates_omp(omp_get_max_threads());
     #pragma omp parallel for
     for ( unsigned int i=0;i<MarkerCanditates.size();i++ )
@@ -748,10 +748,10 @@ int MarkerDetector:: perimeter ( vector<Point2f> &a )
  *
  */
 void MarkerDetector::findBestCornerInRegion_harris ( const cv::Mat  & grey,vector<cv::Point2f> &  Corners,int blockSize )
-{ 
+{
      SubPixelCorner Subp;
      Subp.RefineCorner(grey,Corners);
- 
+
 }
 
 
@@ -764,65 +764,78 @@ void MarkerDetector::refineCandidateLines(MarkerDetector::MarkerCandidate& candi
       // search corners on the contour vector
       vector<unsigned int> cornerIndex;
       cornerIndex.resize(4);
-      for(unsigned int j=0; j<candidate.contour.size(); j++) {
-	for(unsigned int k=0; k<4; k++) {
-	  if(candidate.contour[j].x==candidate[k].x && candidate.contour[j].y==candidate[k].y) {
-	    cornerIndex[k] = j;
-	  }   
-	}
-      } 
-      
+      for(unsigned int j=0; j<candidate.contour.size(); j++)
+      {
+      	for(unsigned int k=0; k<4; k++)
+        {
+      	  if(candidate.contour[j].x==candidate[k].x && candidate.contour[j].y==candidate[k].y)
+          {
+      	    cornerIndex[k] = j;
+      	  }
+      	}
+      }
+
       // contour pixel in inverse order or not?
       bool inverse;
       if( (cornerIndex[1] > cornerIndex[0]) && (cornerIndex[2]>cornerIndex[1] || cornerIndex[2]<cornerIndex[0]) )
-	inverse = false;
-      else if( cornerIndex[2]>cornerIndex[1] && cornerIndex[2]<cornerIndex[0] )
-	inverse = false;
-      else inverse = true;
-      
-     
+       inverse = false;
+      else
+        if( cornerIndex[2]>cornerIndex[1] && cornerIndex[2]<cornerIndex[0] )
+         inverse = false;
+        else
+         inverse = true;
+
+
       // get pixel vector for each line of the marker
       int inc = 1;
       if(inverse) inc = -1;
-      
+
       // undistort contour
       vector<Point2f> contour2f;
-      for(unsigned int i=0; i<candidate.contour.size(); i++) 
-	contour2f.push_back( cv::Point2f(candidate.contour[i].x, candidate.contour[i].y) );      
+      for(unsigned int i=0; i<candidate.contour.size(); i++)
+	     contour2f.push_back( cv::Point2f(candidate.contour[i].x, candidate.contour[i].y) );
+
       if(!camMatrix.empty() && !distCoeff.empty())
-	cv::undistortPoints(contour2f, contour2f, camMatrix, distCoeff, cv::Mat(), camMatrix); 
+	     cv::undistortPoints(contour2f, contour2f, camMatrix, distCoeff, cv::Mat(), camMatrix);
 
 
       vector<std::vector<cv::Point2f> > contourLines;
       contourLines.resize(4);
-      for(unsigned int l=0; l<4; l++) {
-	for(int j=(int)cornerIndex[l]; j!=(int)cornerIndex[(l+1)%4]; j+=inc) {
-	  if(j==(int)candidate.contour.size() && !inverse) j=0;
-	  else if(j==0 && inverse) j=candidate.contour.size()-1;
-	  contourLines[l].push_back(contour2f[j]);
-	  if(j==(int)cornerIndex[(l+1)%4]) break; // this has to be added because of the previous ifs
-	}
-	
+      for(unsigned int l=0; l<4; l++)
+      {
+	       for(int j=(int)cornerIndex[l]; j!=(int)cornerIndex[(l+1)%4]; j+=inc)
+         {
+      	  if(j==(int)candidate.contour.size() && !inverse)
+            j=0;
+      	  else
+            if(j==0 && inverse)
+              j=candidate.contour.size()-1;
+      	  contourLines[l].push_back(contour2f[j]);
+
+      	  if(j==(int)cornerIndex[(l+1)%4])
+            break; // this has to be added because of the previous ifs
+	       }
       }
 
       // interpolate marker lines
       vector<Point3f> lines;
       lines.resize(4);
-      for(unsigned int j=0; j<lines.size(); j++) interpolate2Dline(contourLines[j], lines[j]);    
-      
+      for(unsigned int j=0; j<lines.size(); j++)
+        interpolate2Dline(contourLines[j], lines[j]);
+
       // get cross points of lines
       vector<Point2f> crossPoints;
       crossPoints.resize(4);
       for(unsigned int i=0; i<4; i++)
-	crossPoints[i] = getCrossPoint( lines[(i-1)%4], lines[i] );
-      
+	     crossPoints[i] = getCrossPoint( lines[(i-1)%4], lines[i] );
+
       // distort corners again if undistortion was performed
       if(!camMatrix.empty() && !distCoeff.empty())
-	  distortPoints(crossPoints, crossPoints, camMatrix, distCoeff);
-      
+	     distortPoints(crossPoints, crossPoints, camMatrix, distCoeff);
+
       // reassing points
       for(unsigned int j=0; j<4; j++)
-	candidate[j] = crossPoints[j];  
+	     candidate[j] = crossPoints[j];
 }
 
 
@@ -830,7 +843,7 @@ void MarkerDetector::refineCandidateLines(MarkerDetector::MarkerCandidate& candi
  */
 void MarkerDetector::interpolate2Dline( const std::vector< Point2f >& inPoints, Point3f& outLine)
 {
-  
+
   float minX, maxX, minY, maxY;
   minX = maxX = inPoints[0].x;
   minY = maxY = inPoints[0].y;
@@ -846,8 +859,8 @@ void MarkerDetector::interpolate2Dline( const std::vector< Point2f >& inPoints, 
     Mat B(inPoints.size(),1,CV_32FC1, Scalar(0));
     Mat X;
 
-    
-    
+
+
     if( maxX-minX > maxY-minY ) {
       // Ax + C = y
       for (int i=0; i<inPoints.size(); i++) {
@@ -861,7 +874,7 @@ void MarkerDetector::interpolate2Dline( const std::vector< Point2f >& inPoints, 
       // solve system
       solve(A,B,X, DECOMP_SVD);
       // return Ax + By + C
-      outLine = Point3f(X.at<float>(0,0), -1., X.at<float>(1,0));  
+      outLine = Point3f(X.at<float>(0,0), -1., X.at<float>(1,0));
     }
     else {
       // By + C = x
@@ -876,16 +889,16 @@ void MarkerDetector::interpolate2Dline( const std::vector< Point2f >& inPoints, 
       // solve system
       solve(A,B,X, DECOMP_SVD);
       // return Ax + By + C
-      outLine = Point3f(-1., X.at<float>(0,0), X.at<float>(1,0));        
+      outLine = Point3f(-1., X.at<float>(0,0), X.at<float>(1,0));
     }
-  
+
 }
 
 /**
  */
 Point2f MarkerDetector::getCrossPoint(const cv::Point3f& line1, const cv::Point3f& line2)
 {
-  
+
     // create matrices of equation system
     Mat A(2,2,CV_32FC1, Scalar(0));
     Mat B(2,1,CV_32FC1, Scalar(0));
@@ -893,16 +906,16 @@ Point2f MarkerDetector::getCrossPoint(const cv::Point3f& line1, const cv::Point3
 
     A.at<float>(0, 0) = line1.x;
     A.at<float>(0, 1) = line1.y;
-    B.at<float>(0, 0) = -line1.z;    
+    B.at<float>(0, 0) = -line1.z;
 
     A.at<float>(1, 0) = line2.x;
     A.at<float>(1, 1) = line2.y;
-    B.at<float>(1, 0) = -line2.z; 	
-	
+    B.at<float>(1, 0) = -line2.z;
+
     // solve system
     solve(A,B,X, DECOMP_SVD);
-    return Point2f(X.at<float>(0,0), X.at<float>(1,0));   
-  
+    return Point2f(X.at<float>(0,0), X.at<float>(1,0));
+
 }
 
 
@@ -916,7 +929,7 @@ void MarkerDetector::distortPoints(vector<cv::Point2f> in, vector<cv::Point2f> &
  	// calculate 3d points and then reproject, so opencv makes the distortion internally
  	vector<cv::Point3f> cornersPoints3d;
  	for(unsigned int i=0; i<in.size(); i++)
- 	  cornersPoints3d.push_back( cv::Point3f( 
+ 	  cornersPoints3d.push_back( cv::Point3f(
 	      (in[i].x-camMatrix.at<float>(0,2))/camMatrix.at<float>(0,0), 	//x
 	      (in[i].y-camMatrix.at<float>(1,2))/camMatrix.at<float>(1,1), 	//y
 	      1 ) );								//z
@@ -1043,4 +1056,3 @@ void MarkerDetector::setWarpSize(int val) throw(cv::Exception)
 
 
 };
-

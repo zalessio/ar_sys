@@ -79,7 +79,8 @@ namespace aruco {
     *
     *
     */
-    float BoardDetector::detect ( const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected,const CameraParameters &cp, float markerSizeMeters ) throw ( cv::Exception ) {
+    float BoardDetector::detect ( const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected,const CameraParameters &cp, float markerSizeMeters ) throw ( cv::Exception )
+    {
         return detect ( detectedMarkers, BConf,Bdetected,cp.CameraMatrix,cp.Distorsion,markerSizeMeters );
     }
     /**
@@ -87,119 +88,216 @@ namespace aruco {
     *
     */
     float BoardDetector::detect ( const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected, Mat camMatrix,Mat distCoeff,float markerSizeMeters ) throw ( cv::Exception ) {
-        if ( BConf.size() ==0 ) throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty",__FILE__,__LINE__ );
-        if ( BConf[0].size() <2 ) throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty 2",__FILE__,__LINE__ );
+        if ( BConf.size() ==0 )
+          throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty",__FILE__,__LINE__ );
+        if ( BConf[0].size() <2 )
+          throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty 2",__FILE__,__LINE__ );
         //compute the size of the markers in meters, which is used for some routines(mostly drawing)
         float ssize;
-        if ( BConf.mInfoType==BoardConfiguration::PIX && markerSizeMeters>0 ) ssize=markerSizeMeters;
-        else if ( BConf.mInfoType==BoardConfiguration::METERS ) {
+        if ( BConf.mInfoType==BoardConfiguration::PIX && markerSizeMeters>0 )
+          ssize=markerSizeMeters;
+        else if ( BConf.mInfoType==BoardConfiguration::METERS )
+        {
             ssize=cv::norm ( BConf[0][0]-BConf[0][1] );
         }
 
-        // cout<<"markerSizeMeters="<<markerSizeMeters<<endl;
         Bdetected.clear();
         ///find among detected markers these that belong to the board configuration
-        for ( unsigned int i=0; i<detectedMarkers.size(); i++ ) {
+        for ( unsigned int i=0; i<detectedMarkers.size(); i++ )
+        {
             int idx=BConf.getIndexOfMarkerId ( detectedMarkers[i].id );
-            if ( idx!=-1 ) {
+            if ( idx!=-1 )
+            {
                 Bdetected.push_back ( detectedMarkers[i] );
                 Bdetected.back().ssize=ssize;
             }
         }
         //copy configuration
         Bdetected.conf=BConf;
-//
 
         bool hasEnoughInfoForRTvecCalculation=false;
-        if ( Bdetected.size() >=1 ) {
-            if ( camMatrix.rows!=0 ) {
-                if ( markerSizeMeters>0 && BConf.mInfoType==BoardConfiguration::PIX ) hasEnoughInfoForRTvecCalculation=true;
-                else if ( BConf.mInfoType==BoardConfiguration::METERS ) hasEnoughInfoForRTvecCalculation=true;
+        if ( Bdetected.size() >=1 )
+        {
+            if ( camMatrix.rows!=0 )
+            {
+                if ( markerSizeMeters>0 && BConf.mInfoType==BoardConfiguration::PIX )
+                  hasEnoughInfoForRTvecCalculation=true;
+                else if ( BConf.mInfoType==BoardConfiguration::METERS )
+                  hasEnoughInfoForRTvecCalculation=true;
             }
         }
 
-//calculate extrinsic if there is information for that
-        if ( hasEnoughInfoForRTvecCalculation ) {
-
+        //calculate extrinsic if there is information for that
+        if ( hasEnoughInfoForRTvecCalculation )
+        {
             //calculate the size of the markers in meters if expressed in pixels
             double marker_meter_per_pix=0;
-            if ( BConf.mInfoType==BoardConfiguration::PIX ) marker_meter_per_pix=markerSizeMeters /  cv::norm ( BConf[0][0]-BConf[0][1] );
+            if ( BConf.mInfoType==BoardConfiguration::PIX )
+              marker_meter_per_pix=markerSizeMeters /  cv::norm ( BConf[0][0]-BConf[0][1] );
             else marker_meter_per_pix=1;//to avoind interferring the process below
 
             // now, create the matrices for finding the extrinsics
             vector<cv::Point3f> objPoints;
             vector<cv::Point2f> imagePoints;
-            for ( size_t i=0; i<Bdetected.size(); i++ ) {
+            for ( size_t i=0; i<Bdetected.size(); i++ )
+            {
                 int idx=Bdetected.conf.getIndexOfMarkerId ( Bdetected[i].id );
                 assert ( idx!=-1 );
-                for ( int p=0; p<4; p++ ) {
+                for ( int p=0; p<4; p++ )
+                {
                     imagePoints.push_back ( Bdetected[i][p] );
                     const aruco::MarkerInfo &Minfo=Bdetected.conf.getMarkerInfo ( Bdetected[i].id );
                     objPoints.push_back ( Minfo[p]*marker_meter_per_pix );
-//  		cout<<objPoints.back()<<endl;
                 }
             }
-            if ( distCoeff.total() ==0 ) distCoeff=cv::Mat::zeros ( 1,4,CV_32FC1 );
+            if ( distCoeff.total() ==0 )
+              distCoeff = cv::Mat::zeros ( 1,4,CV_32FC1 );
 
-// 	    for(size_t i=0;i< imagePoints.size();i++){
-// 		cout<<objPoints[i]<<" "<<imagePoints[i]<<endl;
-// 	    }
-// 	    cout<<"cam="<<camMatrix<<" "<<distCoeff<<endl;
             cv::Mat rvec,tvec;
             cv::solvePnP ( objPoints,imagePoints,camMatrix,distCoeff,rvec,tvec );
             rvec.convertTo ( Bdetected.Rvec,CV_32FC1 );
             tvec.convertTo ( Bdetected.Tvec,CV_32FC1 );
-//             cout<<rvec<< " "<<tvec<<" _setYPerpendicular="<<_setYPerpendicular<<endl;
 
-            {
-                vector<cv::Point2f> reprojected;
-                cv::projectPoints ( objPoints,rvec,tvec,camMatrix,distCoeff,reprojected );
-                double errSum=0;
-                //check now the reprojection error and
-                for ( size_t i=0; i<reprojected.size(); i++ ) {
-                    errSum+=cv::norm ( reprojected[i]-imagePoints[i] );
-                }
-//                  cout<<"AAA RE="<<errSum/double ( reprojected.size() ) <<endl;
+            double N = 2*objPoints.size();
+            cv::Mat PixelError = cv::Mat::zeros(N,N,CV_64FC1);
+            for (int c=0; c < N; c++)
+              PixelError.at<double>(c,c)=2.0;
 
-            }
+            cv::Mat J;
+            cv::Mat JImageToTransRodr(N,6,CV_64FC1 );
+            vector<cv::Point2f> reprojected;
+            cv::projectPoints ( objPoints,rvec,tvec,camMatrix,distCoeff,reprojected,J);
+            JImageToTransRodr = cv::Mat(J, cv::Rect(0,0,6,N));
+
+            cv::Mat JRodrToRotMat(3,9,CV_64FC1 );
+            cv::Mat R( 3,3,CV_64FC1 );
+            cv::Rodrigues ( rvec, R, JRodrToRotMat );
+
+            cv::Mat JRotMatToEuler =  cv::Mat::zeros( 9,3,CV_64FC1 );
+            double phi   = std::atan2(R.at<double>(2,1),R.at<double>(2,2));
+            double theta = std::atan2(R.at<double>(2,0),sqrt(R.at<double>(2,1)*R.at<double>(2,1) + R.at<double>(2,2)*R.at<double>(2,2)));
+            double psi   = std::atan2(R.at<double>(1,0),R.at<double>(0,0));
+
+            double cphi   = std::cos(phi);
+            double ctheta = std::cos(theta);
+            double cpsi   = std::cos(psi);
+            double sphi   = std::sin(phi);
+            double stheta = std::sin(theta);
+            double spsi   = std::sin(psi);
+            JRotMatToEuler.at<double>(0,0)= 0;
+            JRotMatToEuler.at<double>(0,1)= -cpsi*stheta;
+            JRotMatToEuler.at<double>(0,2)= -spsi*ctheta;
+
+            JRotMatToEuler.at<double>(1,0)=  cpsi*stheta*cphi + spsi*sphi;
+            JRotMatToEuler.at<double>(1,1)=  cpsi*ctheta*sphi;
+            JRotMatToEuler.at<double>(1,2)= -spsi*stheta*sphi - cpsi*cphi;
+
+            JRotMatToEuler.at<double>(2,0)= -cpsi*stheta*sphi + spsi*cphi;
+            JRotMatToEuler.at<double>(2,1)=  cpsi*ctheta*cphi;
+            JRotMatToEuler.at<double>(2,2)= -spsi*stheta*cphi + cpsi*sphi;
+
+            JRotMatToEuler.at<double>(3,0)= 0;
+            JRotMatToEuler.at<double>(3,1)= -spsi*stheta;
+            JRotMatToEuler.at<double>(3,2)=  cpsi*ctheta;
+
+            JRotMatToEuler.at<double>(4,0)=  spsi*stheta*cphi - cpsi*sphi;
+            JRotMatToEuler.at<double>(4,1)=  spsi*ctheta*sphi;
+            JRotMatToEuler.at<double>(4,2)=  cpsi*stheta*sphi - spsi*cphi;
+
+            JRotMatToEuler.at<double>(5,0)= -spsi*stheta*sphi - cpsi*cphi;
+            JRotMatToEuler.at<double>(5,1)=  spsi*ctheta*cphi;
+            JRotMatToEuler.at<double>(5,2)=  cpsi*stheta*cphi + spsi*sphi;
+
+            JRotMatToEuler.at<double>(6,0)= 0;
+            JRotMatToEuler.at<double>(6,1)= -ctheta;
+            JRotMatToEuler.at<double>(6,2)= 0;
+
+            JRotMatToEuler.at<double>(7,0)= ctheta*cphi;
+            JRotMatToEuler.at<double>(7,1)= -stheta*sphi;
+            JRotMatToEuler.at<double>(7,2)= 0;
+
+            JRotMatToEuler.at<double>(8,0)= -ctheta*sphi;
+            JRotMatToEuler.at<double>(8,1)= -stheta*cphi;
+            JRotMatToEuler.at<double>(8,2)= 0;
+
+            cv::Mat JRodrToEuler = JRodrToRotMat*JRotMatToEuler;
+            cv::Mat JRodrToEulerAndIdenty = cv::Mat::zeros(6,6,CV_64FC1 );
+            for (int i=0; i < 3; i++)
+              for (int j=0; j < 3; j++)
+                JRodrToEulerAndIdenty.at<double>(i,j)=JRodrToEuler.at<double>(i,j);
+            for (int i=3; i < 6; i++)
+              JRodrToEulerAndIdenty.at<double>(i,i)=1.0;
+
+            cv::Mat JImageToTransEuler(N,6,CV_64FC1 );
+            JImageToTransEuler = JImageToTransRodr*JRodrToEulerAndIdenty;
+
+            cv::Mat sigmaTransEuler = cv::Mat(JImageToTransEuler.t() *PixelError.inv()* JImageToTransEuler).inv();
+            sigmaTransEuler.convertTo ( Bdetected.Cov,CV_32FC1 );
+
+            /*cv::Mat finalSigma = cv::Mat::zeros( 6,6,CV_64FC1 );
+            finalSigma.at<double>(0,0)=sigmaTransEuler.at<double>(3,3);
+            finalSigma.at<double>(1,1)=sigmaTransEuler.at<double>(4,4);
+            finalSigma.at<double>(2,2)=sigmaTransEuler.at<double>(5,5);
+            finalSigma.at<double>(3,3)=sigmaTransEuler.at<double>(0,0);
+            finalSigma.at<double>(4,4)=sigmaTransEuler.at<double>(1,1);
+            finalSigma.at<double>(5,5)=sigmaTransEuler.at<double>(2,2);
+
+            finalSigma.convertTo ( Bdetected.Cov,CV_32FC1 );*/
+            //std::cout << "Covariance "<< sigmaTransEuler.diag() << std::endl;
+
+            double errSum=0;
+            //check now the reprojection error and
+            for ( size_t i=0; i<reprojected.size(); i++ )
+                errSum+=cv::norm ( reprojected[i]-imagePoints[i] );
+
             //now, do a refinement and remove points whose reprojection error is above a threshold, then repeat calculation with the rest
-            if ( repj_err_thres>0 ) {
-                vector<cv::Point2f> reprojected;
-                cv::projectPoints ( objPoints,rvec,tvec,camMatrix,distCoeff,reprojected );
-
+            if ( repj_err_thres>0 )
+            {
                 vector<int> pointsThatPassTest;//indices
                 //check now the reprojection error and
-                for ( size_t i=0; i<reprojected.size(); i++ ) {
+                for ( size_t i=0; i<reprojected.size(); i++ )
+                {
                     float err=cv::norm ( reprojected[i]-imagePoints[i] );
-                    if ( err<repj_err_thres ) pointsThatPassTest.push_back ( i );
+                    if ( err<repj_err_thres )
+                      pointsThatPassTest.push_back ( i );
                 }
+
                 cout<<"Number of points after reprjection test "<<pointsThatPassTest.size() <<"/"<<objPoints.size() <<endl;
                 //copy these data to another vectors and repeat
                 vector<cv::Point3f> objPoints_filtered;
                 vector<cv::Point2f> imagePoints_filtered;
-                for ( size_t i=0; i<pointsThatPassTest.size(); i++ ) {
+                for ( size_t i=0; i<pointsThatPassTest.size(); i++ )
+                {
                     objPoints_filtered.push_back ( objPoints[pointsThatPassTest[i] ] );
                     imagePoints_filtered.push_back ( imagePoints[pointsThatPassTest[i] ] );
                 }
 
-                cv::solvePnP ( objPoints,imagePoints,camMatrix,distCoeff,rvec,tvec );
+                PixelError = cv::Mat::zeros(2*objPoints_filtered.size(),2*objPoints_filtered.size(),CV_64FC1);
+                for (int c=0; c < 2*objPoints_filtered.size(); c++)
+                  PixelError.at<double>(c,c)=2.0;
+
+                cv::solvePnP ( objPoints_filtered,imagePoints_filtered,camMatrix,distCoeff,rvec,tvec );
                 rvec.convertTo ( Bdetected.Rvec,CV_32FC1 );
                 tvec.convertTo ( Bdetected.Tvec,CV_32FC1 );
+                cv::projectPoints ( objPoints_filtered,rvec,tvec,camMatrix,distCoeff,reprojected, J );
+                cv::Mat sigma = cv::Mat(J.t() *PixelError.inv()* J, cv::Rect(0,0,6,6)).inv();
+                sigma.convertTo ( Bdetected.Cov,CV_32FC1 );
             }
-
 
             //now, rotate 90 deg in X so that Y axis points up
             if ( _setYPerpendicular )
+            {
+                std::cout << "_setYPerpendicular true" << std::endl;
                 rotateXAxis ( Bdetected.Rvec );
-//         cout<<Bdetected.Rvec.at<float>(0,0)<<" "<<Bdetected.Rvec.at<float>(1,0)<<" "<<Bdetected.Rvec.at<float>(2,0)<<endl;
-//         cout<<Bdetected.Tvec.at<float>(0,0)<<" "<<Bdetected.Tvec.at<float>(1,0)<<" "<<Bdetected.Tvec.at<float>(2,0)<<endl;
+            }
         }
 
         float prob=float ( Bdetected.size() ) /double ( Bdetected.conf.size() );
         return prob;
     }
 
-    void BoardDetector::rotateXAxis ( Mat &rotation ) {
+    void BoardDetector::rotateXAxis ( Mat &rotation )
+    {
         cv::Mat R ( 3,3,CV_32FC1 );
         Rodrigues ( rotation, R );
         //create a rotation matrix for x axis
@@ -225,4 +323,3 @@ namespace aruco {
         return BD.getDetectedBoard();
     }
 };
-
