@@ -20,10 +20,10 @@
 	<!-- ar sys cpp node -->
 	<group ns="$(arg mav_name)">
 		<node pkg="ar_sys" type="single_board" name="ar_single_board$(arg uid)" output="screen">
-			<remap from="/camera_info" to="/camera/camera_info" />
-			<remap from="/image" to="/camera/image_raw" />
-			<!--remap from="/camera_info" to="camera/camera_info" />
-			<remap from="/image" to="camera/image_raw" /-->
+			<!--remap from="/camera_info" to="/camera/camera_info" />
+			<remap from="/image" to="/camera/image_raw" /-->
+			<remap from="/camera_info" to="camera/camera_info" />
+			<remap from="/image" to="camera/image_raw" />
 			<remap from="ar_single_board/pose" to="tag_pose" />
 
 			<!--rosparam file="$(arg camera_calib_file)" /-->
