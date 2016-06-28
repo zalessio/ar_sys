@@ -279,9 +279,82 @@ namespace aruco {
                 cv::solvePnP ( objPoints_filtered,imagePoints_filtered,camMatrix,distCoeff,rvec,tvec );
                 rvec.convertTo ( Bdetected.Rvec,CV_32FC1 );
                 tvec.convertTo ( Bdetected.Tvec,CV_32FC1 );
-                cv::projectPoints ( objPoints_filtered,rvec,tvec,camMatrix,distCoeff,reprojected, J );
-                cv::Mat sigma = cv::Mat(J.t() *PixelError.inv()* J, cv::Rect(0,0,6,6)).inv();
-                sigma.convertTo ( Bdetected.Cov,CV_32FC1 );
+
+                double N = 2*objPoints.size();
+                cv::Mat PixelError = cv::Mat::zeros(N,N,CV_64FC1);
+                for (int c=0; c < N; c++)
+                  PixelError.at<double>(c,c)=2.0;
+
+                cv::Mat J;
+                cv::Mat JImageToTransRodr(N,6,CV_64FC1 );
+                vector<cv::Point2f> reprojected;
+                cv::projectPoints ( objPoints,rvec,tvec,camMatrix,distCoeff,reprojected,J);
+                JImageToTransRodr = cv::Mat(J, cv::Rect(0,0,6,N));
+
+                cv::Mat JRodrToRotMat(3,9,CV_64FC1 );
+                cv::Mat R( 3,3,CV_64FC1 );
+                cv::Rodrigues ( rvec, R, JRodrToRotMat );
+
+                cv::Mat JRotMatToEuler =  cv::Mat::zeros( 9,3,CV_64FC1 );
+                double phi   = std::atan2(R.at<double>(2,1),R.at<double>(2,2));
+                double theta = std::atan2(R.at<double>(2,0),sqrt(R.at<double>(2,1)*R.at<double>(2,1) + R.at<double>(2,2)*R.at<double>(2,2)));
+                double psi   = std::atan2(R.at<double>(1,0),R.at<double>(0,0));
+
+                double cphi   = std::cos(phi);
+                double ctheta = std::cos(theta);
+                double cpsi   = std::cos(psi);
+                double sphi   = std::sin(phi);
+                double stheta = std::sin(theta);
+                double spsi   = std::sin(psi);
+                JRotMatToEuler.at<double>(0,0)= 0;
+                JRotMatToEuler.at<double>(0,1)= -cpsi*stheta;
+                JRotMatToEuler.at<double>(0,2)= -spsi*ctheta;
+
+                JRotMatToEuler.at<double>(1,0)=  cpsi*stheta*cphi + spsi*sphi;
+                JRotMatToEuler.at<double>(1,1)=  cpsi*ctheta*sphi;
+                JRotMatToEuler.at<double>(1,2)= -spsi*stheta*sphi - cpsi*cphi;
+
+                JRotMatToEuler.at<double>(2,0)= -cpsi*stheta*sphi + spsi*cphi;
+                JRotMatToEuler.at<double>(2,1)=  cpsi*ctheta*cphi;
+                JRotMatToEuler.at<double>(2,2)= -spsi*stheta*cphi + cpsi*sphi;
+
+                JRotMatToEuler.at<double>(3,0)= 0;
+                JRotMatToEuler.at<double>(3,1)= -spsi*stheta;
+                JRotMatToEuler.at<double>(3,2)=  cpsi*ctheta;
+
+                JRotMatToEuler.at<double>(4,0)=  spsi*stheta*cphi - cpsi*sphi;
+                JRotMatToEuler.at<double>(4,1)=  spsi*ctheta*sphi;
+                JRotMatToEuler.at<double>(4,2)=  cpsi*stheta*sphi - spsi*cphi;
+
+                JRotMatToEuler.at<double>(5,0)= -spsi*stheta*sphi - cpsi*cphi;
+                JRotMatToEuler.at<double>(5,1)=  spsi*ctheta*cphi;
+                JRotMatToEuler.at<double>(5,2)=  cpsi*stheta*cphi + spsi*sphi;
+
+                JRotMatToEuler.at<double>(6,0)= 0;
+                JRotMatToEuler.at<double>(6,1)= -ctheta;
+                JRotMatToEuler.at<double>(6,2)= 0;
+
+                JRotMatToEuler.at<double>(7,0)= ctheta*cphi;
+                JRotMatToEuler.at<double>(7,1)= -stheta*sphi;
+                JRotMatToEuler.at<double>(7,2)= 0;
+
+                JRotMatToEuler.at<double>(8,0)= -ctheta*sphi;
+                JRotMatToEuler.at<double>(8,1)= -stheta*cphi;
+                JRotMatToEuler.at<double>(8,2)= 0;
+
+                cv::Mat JRodrToEuler = JRodrToRotMat*JRotMatToEuler;
+                cv::Mat JRodrToEulerAndIdenty = cv::Mat::zeros(6,6,CV_64FC1 );
+                for (int i=0; i < 3; i++)
+                  for (int j=0; j < 3; j++)
+                    JRodrToEulerAndIdenty.at<double>(i,j)=JRodrToEuler.at<double>(i,j);
+                for (int i=3; i < 6; i++)
+                  JRodrToEulerAndIdenty.at<double>(i,i)=1.0;
+
+                cv::Mat JImageToTransEuler(N,6,CV_64FC1 );
+                JImageToTransEuler = JImageToTransRodr*JRodrToEulerAndIdenty;
+
+                cv::Mat sigmaTransEuler = cv::Mat(JImageToTransEuler.t() *PixelError.inv()* JImageToTransEuler).inv();
+                sigmaTransEuler.convertTo ( Bdetected.Cov,CV_32FC1 );
             }
 
             //now, rotate 90 deg in X so that Y axis points up
