@@ -109,8 +109,11 @@ class ArSysSingleBoard
 			try
 			{
 				cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
-				//cv::undistort(cv_ptr->image,inImage,camParam.CameraMatrix, camParam.Distorsion);
-				inImage = cv_ptr->image;
+
+				cv::undistort(cv_ptr->image,inImage,camParam.CameraMatrix, camParam.Distorsion);
+				camParam.Distorsion = cv::Mat::zeros(4,1,CV_32FC1);
+				//inImage = cv_ptr->image;
+
 				resultImg = cv_ptr->image.clone();
 
 				//detection results will go into "markers"
