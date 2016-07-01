@@ -19,8 +19,8 @@
 	<!-- ar sys cpp node -->
 	<group ns="$(arg mav_name)">
 		<node pkg="ar_sys" type="single_board" name="ar_single_board$(arg uid)" output="screen">
-			<remap from="/camera_info" to="camera_downward/camera_info" />
-			<remap from="/image" to="camera_downward/image_raw" />
+			<remap from="/camera_info" to="camera/camera_bluefox/camera_info" />
+			<remap from="/image" to="camera/camera_bluefox/image_raw" />
 			<remap from="ar_single_board/pose" to="tag_pose" />
 
 			<param name="image_is_rectified" type="bool" value="$(arg video_rectified)"/>
