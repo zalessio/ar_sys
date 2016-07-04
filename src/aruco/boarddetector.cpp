@@ -272,10 +272,6 @@ namespace aruco {
                     imagePoints_filtered.push_back ( imagePoints[pointsThatPassTest[i] ] );
                 }
 
-                PixelError = cv::Mat::zeros(2*objPoints_filtered.size(),2*objPoints_filtered.size(),CV_64FC1);
-                for (int c=0; c < 2*objPoints_filtered.size(); c++)
-                  PixelError.at<double>(c,c)=2.0;
-
                 cv::solvePnP ( objPoints_filtered,imagePoints_filtered,camMatrix,distCoeff,rvec,tvec );
                 rvec.convertTo ( Bdetected.Rvec,CV_32FC1 );
                 tvec.convertTo ( Bdetected.Tvec,CV_32FC1 );
@@ -283,7 +279,7 @@ namespace aruco {
                 double N = 2*objPoints.size();
                 cv::Mat PixelError = cv::Mat::zeros(N,N,CV_64FC1);
                 for (int c=0; c < N; c++)
-                  PixelError.at<double>(c,c)=2.0;
+                  PixelError.at<double>(c,c)=10.0;
 
                 cv::Mat J;
                 cv::Mat JImageToTransRodr(N,6,CV_64FC1 );
