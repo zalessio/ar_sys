@@ -161,7 +161,7 @@ namespace aruco {
             double N = 2*objPoints.size();
             cv::Mat PixelError = cv::Mat::zeros(N,N,CV_64FC1);
             for (int c=0; c < N; c++)
-              PixelError.at<double>(c,c)=2.0;
+              PixelError.at<double>(c,c)=5.0;
 
             cv::Mat J;
             cv::Mat JImageToTransRodr(N,6,CV_64FC1 );
