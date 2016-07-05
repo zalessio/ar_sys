@@ -135,11 +135,11 @@ class ArSysSingleBoard
 					tf::Transform transform = ar_sys::getTf(the_board_detected.Rvec, the_board_detected.Tvec);
 					cv::Mat cov = the_board_detected.Cov;
 
-					/*double roll, pitch, yaw;
+					double roll, pitch, yaw;
 					tf::Matrix3x3(transform.getRotation()).getRPY(roll, pitch, yaw);
 					tf::Quaternion q;
 			    q.setEuler(3.14,0.0,yaw);
-					transform.setRotation(q);*/
+					transform.setRotation(q);
 
 					tf::StampedTransform stampedTransform(transform, msg->header.stamp, "cam_pos", board_frame);
 
