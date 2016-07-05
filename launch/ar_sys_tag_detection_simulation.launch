@@ -11,6 +11,7 @@
 	<arg name="video_rectified" default="false" />
 	<arg name="use_camera_info" default="true" />
 	<arg name="publish_tf" default="true" />
+	<arg name="only_4dof" default="true" />
 
 	<arg name="board_config" default="$(find ar_sys)/data/single/single_tag.yml" />
 	<arg name="board_frame_id" default="board1" />
@@ -32,6 +33,7 @@
 			<param name="draw_markers_cube" type="bool" value="$(arg result_draw_markers_cube)" />
 			<param name="draw_markers_axis" type="bool" value="$(arg result_draw_markers_axis)" />
 	    <param name="publish_tf" value="$(arg publish_tf)" />
+			<param name="only_4dof" value="$(arg only_4dof)" />
 		</node>
 
 		<!--node pkg="topic_tools" type="relay" name="ar_single_board_relay$(arg uid)" args="/ar_single_board$(arg uid)/transform /arsys_single_board/transform" /-->

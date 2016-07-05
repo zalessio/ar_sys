@@ -28,6 +28,7 @@ or implied, of Rafael Muñoz Salinas.
 #ifndef _Aruco_BoardDetector_H
 #define _Aruco_BoardDetector_H
 #include <opencv2/core/core.hpp>
+#include <tf/transform_broadcaster.h>
 #include "exports.h"
 #include "board.h"
 #include "cameraparameters.h"
@@ -107,6 +108,12 @@ public:
     */
     float detect(const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected, cv::Mat camMatrix=cv::Mat(),cv::Mat distCoeff=cv::Mat(), float markerSizeMeters=-1 )throw (cv::Exception);
     float detect(const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected,const CameraParameters &cp, float markerSizeMeters=-1 )throw (cv::Exception);
+
+    float  detect_4dof(const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected, cv::Mat camMatrix=cv::Mat(),cv::Mat distCoeff=cv::Mat(), float markerSizeMeters=-1 )throw (cv::Exception);
+    float detect_4dof(const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected,const CameraParameters &cp, float markerSizeMeters=-1 )throw (cv::Exception);
+    tf::Quaternion eulerAnglesZYXToQuaternion(tf::Vector3 euler_angles);
+    tf::Vector3 quaternionToEulerAnglesZYX(tf::Quaternion);
+    double normalize_angle(double angle);
 
      /**Static version (all in one). Detects the board indicated
     * @param Image input image

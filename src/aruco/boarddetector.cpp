@@ -83,11 +83,17 @@ namespace aruco {
     {
         return detect ( detectedMarkers, BConf,Bdetected,cp.CameraMatrix,cp.Distorsion,markerSizeMeters );
     }
+
+    float BoardDetector::detect_4dof ( const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected,const CameraParameters &cp, float markerSizeMeters ) throw ( cv::Exception )
+    {
+        return detect_4dof ( detectedMarkers, BConf,Bdetected,cp.CameraMatrix,cp.Distorsion,markerSizeMeters );
+    }
     /**
     *
     *
     */
-    float BoardDetector::detect ( const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected, Mat camMatrix,Mat distCoeff,float markerSizeMeters ) throw ( cv::Exception ) {
+    float BoardDetector::detect ( const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected, Mat camMatrix,Mat distCoeff,float markerSizeMeters ) throw ( cv::Exception )
+    {
         if ( BConf.size() ==0 )
           throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty",__FILE__,__LINE__ );
         if ( BConf[0].size() <2 )
@@ -364,6 +370,218 @@ namespace aruco {
         float prob=float ( Bdetected.size() ) /double ( Bdetected.conf.size() );
         return prob;
     }
+
+    tf::Quaternion BoardDetector::eulerAnglesZYXToQuaternion(tf::Vector3 euler_angles)
+     {
+       // Implementation from RPG quad_tutorial
+       double r = euler_angles.x()/2.0;
+       double p = euler_angles.y()/2.0;
+       double y = euler_angles.z()/2.0;
+       tf::Quaternion q(cos(r)*cos(p)*cos(y) + sin(r)*sin(p)*sin(y),
+                        sin(r)*cos(p)*cos(y) - cos(r)*sin(p)*sin(y),
+                        cos(r)*sin(p)*cos(y) + sin(r)*cos(p)*sin(y),
+                        cos(r)*cos(p)*sin(y) - sin(r)*sin(p)*cos(y));
+       return q;
+     }
+
+    tf::Vector3 BoardDetector::quaternionToEulerAnglesZYX(tf::Quaternion q)
+     {
+       // Implementation from RPG quad_tutorial
+       tf::Vector3 euler_angles;
+       euler_angles.setX(atan2(2*q.w()*q.x() + 2*q.y()*q.z(), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z()));
+       euler_angles.setY(-asin(2*q.x()*q.z() - 2*q.w()*q.y()));
+       euler_angles.setZ(atan2(2*q.w()*q.z() + 2*q.x()*q.y(), q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z()));
+       return euler_angles;
+     }
+
+     double BoardDetector::normalize_angle(double angle)
+     {
+       while (angle > M_PI)
+         angle -= 2*M_PI;
+       while (angle < -M_PI)
+         angle += 2*M_PI;
+
+       return angle;
+     }
+
+    float BoardDetector::detect_4dof(const vector<Marker> &detectedMarkers,const  BoardConfiguration &BConf, Board &Bdetected, Mat camMatrix,Mat distCoeff,float markerSizeMeters ) throw ( cv::Exception )
+    {
+      if ( BConf.size() ==0 )
+        throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty",__FILE__,__LINE__ );
+      if ( BConf[0].size() <2 )
+        throw cv::Exception ( 8881,"BoardDetector::detect","Invalid BoardConfig that is empty 2",__FILE__,__LINE__ );
+      //compute the size of the markers in meters, which is used for some routines(mostly drawing)
+      float ssize;
+      if ( BConf.mInfoType==BoardConfiguration::PIX && markerSizeMeters>0 )
+        ssize=markerSizeMeters;
+      else if ( BConf.mInfoType==BoardConfiguration::METERS )
+      {
+          ssize=cv::norm ( BConf[0][0]-BConf[0][1] );
+      }
+
+      Bdetected.clear();
+      ///find among detected markers these that belong to the board configuration
+      for ( unsigned int i=0; i<detectedMarkers.size(); i++ )
+      {
+          int idx=BConf.getIndexOfMarkerId ( detectedMarkers[i].id );
+          if ( idx!=-1 )
+          {
+              Bdetected.push_back ( detectedMarkers[i] );
+              Bdetected.back().ssize=ssize;
+          }
+      }
+      //copy configuration
+      Bdetected.conf=BConf;
+
+      bool hasEnoughInfoForRTvecCalculation=false;
+      if ( Bdetected.size() >=1 )
+      {
+          if ( camMatrix.rows!=0 )
+          {
+              if ( markerSizeMeters>0 && BConf.mInfoType==BoardConfiguration::PIX )
+                hasEnoughInfoForRTvecCalculation=true;
+              else if ( BConf.mInfoType==BoardConfiguration::METERS )
+                hasEnoughInfoForRTvecCalculation=true;
+          }
+      }
+
+      //calculate extrinsic if there is information for that
+      if ( hasEnoughInfoForRTvecCalculation )
+      {
+          //calculate the size of the markers in meters if expressed in pixels
+          double marker_meter_per_pix=0;
+          if ( BConf.mInfoType==BoardConfiguration::PIX )
+            marker_meter_per_pix=markerSizeMeters /  cv::norm ( BConf[0][0]-BConf[0][1] );
+          else marker_meter_per_pix=1;//to avoind interferring the process below
+
+          // now, create the matrices for finding the extrinsics
+          vector<cv::Point3f> objPoints;
+          vector<cv::Point2f> imagePoints;
+          for ( size_t i=0; i<Bdetected.size(); i++ )
+          {
+              int idx=Bdetected.conf.getIndexOfMarkerId ( Bdetected[i].id );
+              assert ( idx!=-1 );
+              for ( int p=0; p<4; p++ )
+              {
+                  imagePoints.push_back ( Bdetected[i][p] );
+                  const aruco::MarkerInfo &Minfo=Bdetected.conf.getMarkerInfo ( Bdetected[i].id );
+                  objPoints.push_back ( Minfo[p]*marker_meter_per_pix );
+              }
+          }
+          if ( distCoeff.total() ==0 )
+            distCoeff = cv::Mat::zeros ( 1,4,CV_32FC1 );
+
+          double mean_u = 0.0;
+          double mean_v = 0.0;
+          double mean_Z = 0.0;
+          double mean_yaw_diff = 0.0;
+
+          double first_yaw;
+
+          for (int j=0; j<4; j++)
+          {
+            double delta_u = (imagePoints[j].x - imagePoints[(j+1)%4].x)/camMatrix.at<double>(0,0);
+            double delta_v = (imagePoints[j].y - imagePoints[(j+1)%4].y)/camMatrix.at<double>(1,1);
+            double Z = sqrt(markerSizeMeters*markerSizeMeters / (delta_u*delta_u + delta_v*delta_v));
+
+            double yaw = -(atan2(delta_v, delta_u) + j*M_PI/2.0 + M_PI);
+            if (j==0) {
+              first_yaw = yaw;
+            }
+            else {
+              mean_yaw_diff += normalize_angle(yaw-first_yaw);
+            }
+
+            mean_u += imagePoints[j].x;
+            mean_v += imagePoints[j].y;
+            mean_Z += Z;
+          }
+          mean_u /= 4.0;
+          mean_v /= 4.0;
+          mean_Z /= 4.0;
+          double mean_yaw = first_yaw + mean_yaw_diff/3.0;
+
+          double X = (mean_u-camMatrix.at<double>(0,2))/camMatrix.at<double>(0,0) * mean_Z;
+          double Y = (mean_v-camMatrix.at<double>(1,2))/camMatrix.at<double>(1,1) * mean_Z;
+
+          tf::Quaternion rot_x(0.0, 1.0, 0.0, 0.0);
+          tf::Vector3 euler_yaw(0.0, 0.0, mean_yaw);
+          tf::Quaternion rot_yaw = eulerAnglesZYXToQuaternion(euler_yaw);
+          tf::Quaternion rot = rot_x * rot_yaw;
+          tf::Vector3 rot_ypr = quaternionToEulerAnglesZYX(rot);
+
+          cv::Mat tvec(3,1,CV_64FC1);;
+          tvec.at<double>(0,0) = X;
+          tvec.at<double>(1,0) = Y;
+          tvec.at<double>(2,0) = mean_Z;
+          cv::Mat rvec;
+          tf::Matrix3x3 R1(rot);
+          cv::Mat R2( 3,3,CV_64FC1 );
+          for (int r=0; r < 3; r++)
+            for (int c=0; c < 3; c++)
+              R2.at<double>(r,c)= R1[r][c];
+          cv::Rodrigues (R2, rvec);
+
+          rvec.convertTo ( Bdetected.Rvec,CV_32FC1 );
+          tvec.convertTo ( Bdetected.Tvec,CV_32FC1 );
+
+          double N = 2*4;//objPoints.size();
+          cv::Mat PixelError = cv::Mat::zeros(N,N,CV_64FC1);
+          for (int c=0; c < N; c++)
+            PixelError.at<double>(c,c)=10.0;
+
+          cv::Mat J;
+          cv::Mat JImageToTransRodr(N,6,CV_64FC1 );
+          vector<cv::Point2f> reprojected;
+          cv::projectPoints ( objPoints,rvec,tvec,camMatrix,distCoeff,reprojected,J);
+          JImageToTransRodr = cv::Mat(J, cv::Rect(0,0,6,N));
+
+          cv::Mat JRodrToRotMat(3,9,CV_64FC1 );
+          cv::Mat R( 3,3,CV_64FC1 );
+          cv::Rodrigues ( rvec, R, JRodrToRotMat );
+
+          cv::Mat JRotMatToEuler =  cv::Mat::zeros( 9,3,CV_64FC1 );
+
+          double cpsi   = std::cos(mean_yaw);
+          double spsi   = std::sin(mean_yaw);
+          JRotMatToEuler.at<double>(0,2)= -spsi;
+
+          JRotMatToEuler.at<double>(1,2)=  cpsi;
+
+          JRotMatToEuler.at<double>(2,0)=  -spsi;
+          JRotMatToEuler.at<double>(2,1)=  -cpsi;
+
+          JRotMatToEuler.at<double>(3,2)=  cpsi;
+
+          JRotMatToEuler.at<double>(4,2)=  spsi;
+
+          JRotMatToEuler.at<double>(5,0)=  cpsi;
+          JRotMatToEuler.at<double>(5,1)=  -spsi;
+
+          JRotMatToEuler.at<double>(6,1)= -1;
+
+          JRotMatToEuler.at<double>(7,0)= -1;
+
+          cv::Mat JRodrToEuler = JRodrToRotMat*JRotMatToEuler;
+          cv::Mat JRodrToEulerAndIdenty = cv::Mat::zeros(6,6,CV_64FC1 );
+          for (int r=0; r < 3; r++)
+            for (int c=0; c < 3; c++)
+              JRodrToEulerAndIdenty.at<double>(r,c)=JRodrToEuler.at<double>(r,c);
+          for (int r=3; r < 6; r++)
+            JRodrToEulerAndIdenty.at<double>(r,r)=1.0;
+
+          cv::Mat JImageToTransEuler(N,6,CV_64FC1 );
+          JImageToTransEuler = JImageToTransRodr*JRodrToEulerAndIdenty;
+
+          cv::Mat sigmaTransEuler = cv::Mat(JImageToTransEuler.t() *PixelError.inv()* JImageToTransEuler).inv();
+
+          sigmaTransEuler.convertTo ( Bdetected.Cov,CV_32FC1 );
+
+        }
+
+      float prob=float ( Bdetected.size() ) /double ( Bdetected.conf.size() );
+      return prob;
+  }
 
     void BoardDetector::rotateXAxis ( Mat &rotation )
     {

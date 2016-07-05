@@ -35,6 +35,7 @@ class ArSysSingleBoard
 		bool draw_markers_cube;
 		bool draw_markers_axis;
     bool publish_tf;
+		bool only_4dof;
 		MarkerDetector mDetector;
 		vector<Marker> markers;
 		BoardConfiguration the_board_config;
@@ -77,7 +78,8 @@ class ArSysSingleBoard
 			nh.param<bool>("draw_markers", draw_markers, false);
 			nh.param<bool>("draw_markers_cube", draw_markers_cube, false);
 			nh.param<bool>("draw_markers_axis", draw_markers_axis, false);
-            nh.param<bool>("publish_tf", publish_tf, false);
+      nh.param<bool>("publish_tf", publish_tf, false);
+			nh.param<bool>("only_4dof", only_4dof, false);
 
 			the_board_config.readFromFile(board_config.c_str());
 
@@ -121,7 +123,11 @@ class ArSysSingleBoard
 				//Ok, let's detect
 				mDetector.detect(inImage, markers, camParam, marker_size, false);
 				//Detection of the board
-				float probDetect=the_board_detector.detect(markers, the_board_config, the_board_detected, camParam, marker_size);
+				float probDetect = 0.0;
+				if(only_4dof)
+					probDetect=the_board_detector.detect_4dof(markers, the_board_config, the_board_detected, camParam, marker_size);
+				else
+					probDetect=the_board_detector.detect(markers, the_board_config, the_board_detected, camParam, marker_size);
 				if (probDetect > 0.0)
 				{
 					tf::Transform transform = ar_sys::getTf(the_board_detected.Rvec, the_board_detected.Tvec);
