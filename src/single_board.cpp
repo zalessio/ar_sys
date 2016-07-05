@@ -122,12 +122,14 @@ class ArSysSingleBoard
 				markers.clear();
 				//Ok, let's detect
 				mDetector.detect(inImage, markers, camParam, marker_size, false);
+
 				//Detection of the board
 				float probDetect = 0.0;
 				if(only_4dof)
 					probDetect=the_board_detector.detect_4dof(markers, the_board_config, the_board_detected, camParam, marker_size);
 				else
-					probDetect=the_board_detector.detect(markers, the_board_config, the_board_detected, camParam, marker_size);
+					probDetect=the_board_detector.detect(markers, the_board_config, the_board_detected, camParam.CameraMatrix, camParam.Distorsion, marker_size);
+
 				if (probDetect > 0.0)
 				{
 					tf::Transform transform = ar_sys::getTf(the_board_detected.Rvec, the_board_detected.Tvec);

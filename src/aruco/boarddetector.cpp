@@ -468,8 +468,6 @@ namespace aruco {
                   objPoints.push_back ( Minfo[p]*marker_meter_per_pix );
               }
           }
-          if ( distCoeff.total() ==0 )
-            distCoeff = cv::Mat::zeros ( 1,4,CV_32FC1 );
 
           double mean_u = 0.0;
           double mean_v = 0.0;
@@ -533,6 +531,7 @@ namespace aruco {
           cv::Mat J;
           cv::Mat JImageToTransRodr(N,6,CV_64FC1 );
           vector<cv::Point2f> reprojected;
+          distCoeff = cv::Mat::zeros ( 1,4,CV_32FC1 );
           cv::projectPoints ( objPoints,rvec,tvec,camMatrix,distCoeff,reprojected,J);
           JImageToTransRodr = cv::Mat(J, cv::Rect(0,0,6,N));
 
@@ -581,7 +580,7 @@ namespace aruco {
 
       float prob=float ( Bdetected.size() ) /double ( Bdetected.conf.size() );
       return prob;
-  }
+    }
 
     void BoardDetector::rotateXAxis ( Mat &rotation )
     {
